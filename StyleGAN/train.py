@@ -7,6 +7,9 @@ from torch.nn.functional import interpolate
 import numpy as np
 from matplotlib import pyplot as plt
 from tqdm.notebook import tqdm
+from mri_style_gan import StyleGenerator, ProgressiveDiscriminator
+from losses import compute_gradient_penalty, fake_loss, real_loss
+import numpy as np
 
 ### Initialization
 
@@ -14,7 +17,10 @@ z_size = 128
 hidden_size = 256
 start_resolution = 8
 batch_size = 16
-max_resolution = 32
+max_resolution = 64
+
+make_plots = True
+
 
 G = StyleGenerator(hidden_size, z_size, start_resolution=start_resolution).cuda()
 D = ProgressiveDiscriminator(hidden_size, start_resolution=start_resolution).cuda()
@@ -42,8 +48,13 @@ def get_resizing_func(size):
 resize_to = {size: get_resizing_func(size) for size in range(4, max_resolution + 1, 4)}
 
 
+labels = np.load("../data/genders.npy")
+tensors = np.load("../data/scans.npy")
 
-ds = data.TensorDataset(tensors, torch.Tensor(labels))
+scan_data = tensors[:, None, :, 3:-3]
+scan_data = torch.nn.functional.pad(torch.Tensor(scan_data), (3, 3, 0, 0, 3, 3))
+
+ds = data.TensorDataset(scan_data, torch.Tensor(labels))
 train_loader = data.DataLoader(ds, batch_size=batch_size)
 
 
@@ -64,13 +75,11 @@ increase_alpha_every = len(ds) // batch_size * 3 // 10
 sample_size=4
 fixed_z = torch.randn(sample_size, z_size, dtype=torch.float32).cuda()
 
-#cur_resolution = start_resolution
+cur_resolution = start_resolution
 lambda_gp = 10
 
 data_max, data_min = tensors.max(), tensors.min()
 data_range = data_max - data_min
-
-
 
 # train the network
 D.train()
@@ -172,14 +181,14 @@ for epoch in range(start_epoch, num_epochs):
     samples_z = G(fixed_z)
     G.train() # back to train mode
 
-
-    f = plt.figure(figsize=(24, 4))
-    for i in range(1, 4):
-      ax = plt.subplot(1, 4, i)
-      plot_scan(samples_z[i-1][0].detach().cpu(), axes=ax)
-    ax = plt.subplot(1, 4, 4)
-    plot_scan(real_images[0][0].detach().cpu(), axes=ax)
-    plt.show()
+    if make_plots:
+      f = plt.figure(figsize=(24, 4))
+      for i in range(1, 4):
+        ax = plt.subplot(1, 4, i)
+        plot_scan(samples_z[i-1][0].detach().cpu(), axes=ax)
+      ax = plt.subplot(1, 4, 4)
+      plot_scan(real_images[0][0].detach().cpu(), axes=ax)
+      plt.show()
 
     torch.save(G.state_dict(), f'checkpoints/stylegan_generator_weights_{epoch}.pkl')
     torch.save(D.state_dict(), f'checkpoints/stylegan_discriminator_weights_{epoch}.pkl')
