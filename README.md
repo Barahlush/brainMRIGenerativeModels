@@ -17,6 +17,7 @@ This is the first open-souce PyTorch realization of StyleGAN v1 for 3d models.
 ## Data
 The models were trained using [Human Connectome Young Adults](https://www.humanconnectome.org/study/hcp-young-adult/document/1200-subjects-data-release) brain sMRI scans.
 
+**This does not contain the data, only code.** The data can be downloaded separately only via Human Connectome website. This process is **free**, but requires registration and confirmation from the Human Connectome organisation.
 
 ## Requisites
 Python3, Pytorch 1.8+, Numpy, Matplotlib
